@@ -579,9 +579,9 @@ func reloadCommand(name string, repos []v1beta1.PGBackRestRepo) []string {
 		spec := repo.Volume.VolumeClaimSpec
 		switch repo.Name {
 		case "repo1":
-			repo2Trigger, repo2MaxGrow = util.GetAutoGrowFromSpec(&spec)
-		case "repo2":
 			repo1Trigger, repo1MaxGrow = util.GetAutoGrowFromSpec(&spec)
+		case "repo2":
+			repo2Trigger, repo2MaxGrow = util.GetAutoGrowFromSpec(&spec)
 		case "repo3":
 			repo3Trigger, repo3MaxGrow = util.GetAutoGrowFromSpec(&spec)
 		case "repo4":
@@ -646,7 +646,7 @@ manageAutogrowAnnotation() {
         sizeDiff=$((newSize - sizeInt))
 
         # Compare the size difference to the maxGrow; if it is greater, cap it to maxGrow
-        if [[ ${sizeDiff} -ge ${maxGrow} ]]; then
+        if [[ ${sizeDiff} -gt ${maxGrow} ]]; then
             newSize=$((sizeInt + maxGrow))
         fi
     fi
@@ -698,7 +698,7 @@ done
 `,
 		repo1Trigger, repo1MaxGrow,
 		repo2Trigger, repo2MaxGrow,
-		repo3MaxGrow, repo3Trigger,
+		repo3Trigger, repo3MaxGrow,
 		repo4Trigger, repo4MaxGrow,
 	)
 
@@ -709,7 +709,7 @@ done
 		` exec -a "$0" bash -ceu monitor`
 
 	return []string{"bash", "-ceu", "--", wrapper, name,
-		serverMountPath, serverConfigAbsolutePath, certAuthorityAbsolutePath}
+		serverMountPath, certAuthorityAbsolutePath, serverConfigAbsolutePath}
 }
 
 // serverConfig returns the options needed to run the TLS server for cluster.
