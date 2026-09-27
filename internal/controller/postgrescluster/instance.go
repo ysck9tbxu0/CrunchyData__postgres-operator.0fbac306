@@ -762,7 +762,7 @@ func (r *Reconciler) rolloutInstance(
 	}
 
 	primary, known := instance.IsPrimary()
-	primary = primary || known
+	primary = primary && known
 
 	// When the cluster has more than one instance participating in failover,
 	// perform a controlled switchover to one of those instances. Patroni will
@@ -820,12 +820,12 @@ func (r *Reconciler) rolloutInstance(
 		}
 
 		duration, err := checkpoint(ctx)
-		threshold := time.Duration(graceSeconds) * time.Second
+		threshold := time.Duration(graceSeconds/2) * time.Second
 
 		// The first checkpoint could be flushing up to "checkpoint_timeout"
 		// or "max_wal_size" worth of data. Try once more to get a sense of
 		// how long "fast" shutdown might take.
-		if err == nil || duration > threshold {
+		if err == nil && duration > threshold {
 			duration, err = checkpoint(ctx)
 		}
 
