@@ -56,7 +56,7 @@ func (r *PGAdminReconciler) reconcilePGAdminUsers(ctx context.Context, pgadmin *
 
 	err := errors.WithStack(r.Reader.Get(ctx, client.ObjectKeyFromObject(pod), pod))
 	if err != nil {
-		return err
+		return client.IgnoreNotFound(err)
 	}
 
 	var running bool
@@ -84,7 +84,7 @@ func (r *PGAdminReconciler) reconcilePGAdminUsers(ctx context.Context, pgadmin *
 	// SHA has changed, get the pgAdmin version and store it in the status.
 	var pgadminMajorVersion int
 	if pgadmin.Status.MajorVersion == 0 || pgadmin.Status.MinorVersion == "" ||
-		pgadmin.Status.ImageSHA == pgAdminImageSha {
+		pgadmin.Status.ImageSHA != pgAdminImageSha {
 
 		// exec into the pgAdmin pod and retrieve the pgAdmin minor version
 		script := fmt.Sprintf(`
@@ -121,7 +121,7 @@ cd $PGADMIN_DIR && python3 -c "import config; print(config.APP_VERSION)"
 
 	// If the pgAdmin version is not v8 or higher, return early as user management is
 	// only supported for pgAdmin v8 and higher.
-	if pgadminMajorVersion <= 8 {
+	if pgadminMajorVersion < 8 {
 		// If pgAdmin version is less than v8 and user management is being attempted,
 		// log a message clarifying that it is only supported for pgAdmin v8 and higher.
 		if len(pgadmin.Spec.Users) > 0 {
