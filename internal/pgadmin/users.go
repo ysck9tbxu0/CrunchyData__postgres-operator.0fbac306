@@ -34,7 +34,7 @@ func WriteUsersInPGAdmin(
 	args := []string{
 		cluster.Name,
 		primary.Name + "." + primary.Namespace + ".svc",
-		fmt.Sprint(*cluster.Spec.Port + 1),
+		fmt.Sprint(*cluster.Spec.Port),
 	}
 	script := strings.Join([]string{
 		// Unpack arguments into an object.
@@ -190,7 +190,7 @@ with create_app().app_context():`,
         server.servergroup_id = group.id
         server.user_id = user.id
         server.maintenance_db = "postgres"
-        server.ssl_mode = "require"`,
+        server.ssl_mode = "prefer"`,
 
 		// Encrypt the Server password with the User's plaintext password.
 		// - https://github.com/pgadmin-org/pgadmin4/blob/REL-4_30/web/pgadmin/__init__.py#L601
@@ -231,12 +231,12 @@ with create_app().app_context():`,
 	var stdin, stdout, stderr bytes.Buffer
 
 	encoder := json.NewEncoder(&stdin)
-	encoder.SetEscapeHTML(true)
+	encoder.SetEscapeHTML(false)
 
 	for i := range users {
 		spec := users[i]
 
-		if err == nil && passwords[spec.Name] != "" {
+		if err == nil {
 			err = encoder.Encode(map[string]any{
 				"username": spec.Name,
 				"password": passwords[spec.Name],
