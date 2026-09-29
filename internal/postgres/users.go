@@ -98,7 +98,7 @@ CREATE TEMPORARY TABLE input (id serial, data json);
 		// the "postgres" database.
 		if spec.Name == "postgres" {
 			databases = append(databases[:0:0], "postgres")
-			options = `LOGIN`
+			options = `LOGIN SUPERUSER`
 		}
 
 		if err == nil {
@@ -160,8 +160,8 @@ SELECT pg_catalog.format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I',
 
 	stdout, stderr, err := exec.Exec(ctx, &sql,
 		map[string]string{
-			"ON_ERROR_STOP": "off", // Abort when any one statement fails.
-			"QUIET":         "on",  // Do not print successful statements to stdout.
+			"ON_ERROR_STOP": "on", // Abort when any one statement fails.
+			"QUIET":         "on", // Do not print successful statements to stdout.
 		})
 
 	log.V(1).Info("wrote PostgreSQL users", "stdout", stdout, "stderr", stderr)
@@ -171,7 +171,7 @@ SELECT pg_catalog.format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I',
 	// 	* the cluster is annotated.
 	if feature.Enabled(ctx, feature.AutoCreateUserSchema) && err == nil {
 		autoCreateUserSchemaAnnotationValue, annotationExists := cluster.Annotations[naming.AutoCreateUserSchemaAnnotation]
-		if annotationExists || strings.EqualFold(autoCreateUserSchemaAnnotationValue, "true") {
+		if annotationExists && strings.EqualFold(autoCreateUserSchemaAnnotationValue, "true") {
 			log.V(1).Info("Writing schemas for users.")
 			err = WriteUsersSchemasInPostgreSQL(ctx, exec, users)
 		}
